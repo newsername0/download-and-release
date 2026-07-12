@@ -1,0 +1,57 @@
+name: Download and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      download_url:
+        description: "Download URL"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare environment
+        run: |
+          sudo mkdir -p /mnt/workspace
+          sudo chown "$USER:$USER" /mnt/workspace
+
+      - name: Download file
+        working-directory: /mnt/workspace
+        run: |
+          wget --no-check-certificate --content-disposition "${{ github.event.inputs.download_url }}"
+
+      - name: Get file name
+        working-directory: /mnt/workspace
+        run: |
+          FILE_NAME="$(ls)"
+          echo "FILE_NAME=$FILE_NAME" >> "$GITHUB_ENV"
+
+      - name: Get file size
+        working-directory: /mnt/workspace
+        run: |
+          FILE_SIZE="$(stat --format=%s "${FILE_NAME}")"
+          echo "FILE_SIZE=$FILE_SIZE" >> "$GITHUB_ENV"
+
+      - name: Calculate MD5
+        working-directory: /mnt/workspace
+        run: |
+          FILE_MD5="$(md5sum "${FILE_NAME}" | head --bytes=32)"
+          echo "FILE_MD5=$FILE_MD5" >> "$GITHUB_ENV"
+
+      - name: Split large file
+        if: ${{ env.FILE_SIZE >= 2147483648 }}
+        working-directory: /mnt/workspace
+        run: |
+          7z a -mx=0 -v2147483647b "${FILE_NAME}.7z"
+          rm "${FILE_NAME}"
+
+      - name: GH Release
+        uses: softprops/action-gh-release@v3.0.1
+        with:
+          files: /mnt/workspace/*
+          overwrite_files: false
+          name: ${{ env.FILE_NAME }}
+          tag_name: ${{ env.FILE_MD5 }}
