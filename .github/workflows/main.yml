@@ -49,7 +49,7 @@ jobs:
           rm "${FILE_NAME}"
 
       - name: GH Release
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.4
         with:
           files: /mnt/workspace/*
           overwrite_files: false
